@@ -2,7 +2,6 @@ import asyncio
 import logging
 import random
 from datetime import datetime, timedelta
-
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
@@ -207,11 +206,13 @@ Contoh: /unblock 123456789
 async def main():
     await init_db()
 
-    # 🟢 HAPUS WEBHOOK LAMA (Mencegah TelegramConflictError)
+    # 🟢 HAPUS WEBHOOK LAMA DAN DROP UPDATE PENDING
     await bot.delete_webhook(drop_pending_updates=True)
+    logging.info("🟢 Webhook lama dihapus, memulai polling...")
 
-    logging.info("🟢 Memulai polling bot...")
+    # Mulai polling bot
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    # 🚀 Pastikan hanya 1 instance berjalan
     asyncio.run(main())
