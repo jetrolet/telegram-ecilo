@@ -16,7 +16,7 @@ QRIS_IMAGE = "qris.jpg"  # pastikan file ada di project
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=BOT_TOKEN)
+bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 dp = Dispatcher()
 
 DB_NAME = "database.db"
@@ -108,16 +108,16 @@ Silakan pilih menu di bawah dan ikuti semua peraturan ⚠️
 
     if user.id == ADMIN_ID:
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🛒 Beli Produk", callback_data="buy")],
-            [InlineKeyboardButton(text="📦 Pesanan Saya", callback_data="orders")],
-            [InlineKeyboardButton(text="❓ Bantuan", callback_data="help")],
-            [InlineKeyboardButton(text="👑 Panel Admin", callback_data="admin_panel")]
+            [InlineKeyboardButton("🛒 Beli Produk", callback_data="buy")],
+            [InlineKeyboardButton("📦 Pesanan Saya", callback_data="orders")],
+            [InlineKeyboardButton("❓ Bantuan", callback_data="help")],
+            [InlineKeyboardButton("👑 Panel Admin", callback_data="admin_panel")]
         ])
     else:
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🛒 Beli Produk", callback_data="buy")],
-            [InlineKeyboardButton(text="📦 Pesanan Saya", callback_data="orders")],
-            [InlineKeyboardButton(text="❓ Bantuan", callback_data="help")]
+            [InlineKeyboardButton("🛒 Beli Produk", callback_data="buy")],
+            [InlineKeyboardButton("📦 Pesanan Saya", callback_data="orders")],
+            [InlineKeyboardButton("❓ Bantuan", callback_data="help")]
         ])
 
     await message.answer(text, reply_markup=keyboard)
@@ -133,9 +133,8 @@ async def show_countries(callback: CallbackQuery):
         await callback.message.answer("⚠️ Belum ada negara tersedia ⚠️")
         return
 
-    buttons = [[InlineKeyboardButton(text=row[1], callback_data=f"country_{row[0]}")] for row in rows]
+    buttons = [[InlineKeyboardButton(row[1], callback_data=f"country_{row[0]}")] for row in rows]
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-
     await callback.message.answer("🌍 Silakan pilih negara tersedia 🌍", reply_markup=keyboard)
 
 # ================= PAYMENT TIMER =================
@@ -166,150 +165,26 @@ async def admin_panel(callback: CallbackQuery):
 👑 PANEL ADMIN NOKTEL OLD TG 💎
 
 📌 Panduan Cepat:
-
-1️⃣ Tambah Negara:
-/add_country NamaNegara
-Contoh: /add_country Indonesia 🌏
-
-2️⃣ Tambah Produk / ID:
-/add_product country_id harga
-Contoh: /add_product 1 15000
-
-3️⃣ Hapus Negara:
-/remove_country country_id
-Contoh: /remove_country 1
-
-4️⃣ Hapus Produk / ID:
-/remove_product product_id
-Contoh: /remove_product 12
-
-5️⃣ Blokir User:
-/block user_id
-Contoh: /block 123456789
-
-6️⃣ Buka Blokir User:
-/unblock user_id
-Contoh: /unblock 123456789
-
-7️⃣ Lihat Order Pending:
-/orders
-- Menampilkan pesanan aktif menunggu pembayaran atau konfirmasi
+1️⃣ Tambah Negara: /add_country NamaNegara
+2️⃣ Tambah Produk: /add_product country_id harga
+3️⃣ Hapus Negara: /remove_country country_id
+4️⃣ Hapus Produk: /remove_product product_id
+5️⃣ Blokir User: /block user_id
+6️⃣ Buka Blokir User: /unblock user_id
+7️⃣ Lihat Order Pending: /orders
 """
     await callback.message.answer(text)
-
-# ================= ADMIN COMMANDS =================
-@dp.message(Command("add_country"))
-async def add_country(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    parts = message.text.split(maxsplit=1)
-    if len(parts) != 2:
-        await message.reply("Gunakan format: /add_country NamaNegara")
-        return
-    name = parts[1].strip()
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("INSERT INTO countries(name) VALUES(?)", (name,))
-        await db.commit()
-    await message.reply(f"✅ Negara '{name}' berhasil ditambahkan")
-
-@dp.message(Command("remove_country"))
-async def remove_country(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    parts = message.text.split(maxsplit=1)
-    if len(parts) != 2 or not parts[1].isdigit():
-        await message.reply("Gunakan format: /remove_country country_id")
-        return
-    country_id = int(parts[1])
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("DELETE FROM countries WHERE id=?", (country_id,))
-        await db.commit()
-    await message.reply(f"✅ Negara dengan ID {country_id} berhasil dihapus")
-
-@dp.message(Command("add_product"))
-async def add_product(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    parts = message.text.split()
-    if len(parts) != 3 or not parts[1].isdigit() or not parts[2].isdigit():
-        await message.reply("Gunakan format: /add_product country_id harga")
-        return
-    country_id = int(parts[1])
-    price = int(parts[2])
-    code = generate_code()
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("INSERT INTO products(country_id, code, price) VALUES(?,?,?)", (country_id, code, price))
-        await db.commit()
-    await message.reply(f"✅ Produk berhasil ditambahkan dengan code {code} dan harga {price}")
-
-@dp.message(Command("remove_product"))
-async def remove_product(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    parts = message.text.split()
-    if len(parts) != 2 or not parts[1].isdigit():
-        await message.reply("Gunakan format: /remove_product product_id")
-        return
-    product_id = int(parts[1])
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("DELETE FROM products WHERE id=?", (product_id,))
-        await db.commit()
-    await message.reply(f"✅ Produk dengan ID {product_id} berhasil dihapus")
-
-@dp.message(Command("block"))
-async def block_user(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    parts = message.text.split()
-    if len(parts) != 2 or not parts[1].isdigit():
-        await message.reply("Gunakan format: /block user_id")
-        return
-    user_id = int(parts[1])
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("UPDATE users SET blocked=1 WHERE user_id=?", (user_id,))
-        await db.commit()
-    await message.reply(f"🚫 User {user_id} diblokir")
-
-@dp.message(Command("unblock"))
-async def unblock_user(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    parts = message.text.split()
-    if len(parts) != 2 or not parts[1].isdigit():
-        await message.reply("Gunakan format: /unblock user_id")
-        return
-    user_id = int(parts[1])
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute("UPDATE users SET blocked=0 WHERE user_id=?", (user_id,))
-        await db.commit()
-    await message.reply(f"✅ User {user_id} dibuka blokirnya")
-
-@dp.message(Command("orders"))
-async def list_orders(message: Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    async with aiosqlite.connect(DB_NAME) as db:
-        cursor = await db.execute("""
-        SELECT o.id,u.user_id,p.code,p.price,o.status
-        FROM orders o
-        LEFT JOIN users u ON o.user_id=u.user_id
-        LEFT JOIN products p ON o.product_id=p.id
-        """)
-        rows = await cursor.fetchall()
-    if not rows:
-        await message.reply("Belum ada pesanan")
-        return
-    text = "📦 Daftar Pesanan:\n\n"
-    for r in rows:
-        text += f"ID: {r[0]}, User: {r[1]}, Code: {r[2]}, Harga: {r[3]}, Status: {r[4]}\n"
-    await message.reply(text)
 
 # ================= MAIN =================
 async def main():
     await init_db()
+
+    # 🟢 HAPUS WEBHOOK LAMA & DROP UPDATE
+    logging.info("🟢 Menghapus webhook lama...")
     await bot.delete_webhook(drop_pending_updates=True)
-    logging.info("🟢 Webhook lama dihapus, memulai polling...")
-    await dp.start_polling(bot)
+
+    logging.info("🟢 Memulai polling bot...")
+    await dp.start_polling(bot, skip_updates=True)  # skip_updates=True → mencegah conflict
 
 if __name__ == "__main__":
     asyncio.run(main())
